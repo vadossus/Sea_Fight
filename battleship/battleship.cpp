@@ -151,7 +151,7 @@ int customRand(int max, unsigned int additionalSeed) {
 }
 
 void setupShips(char board[BOARD_SIZE][BOARD_SIZE], unsigned int seed) {
-    srand(static_cast<unsigned int>(time(0)) + seed);
+    srand(seed); // Инициализация с уникальным seed
 
     // Очистка доски
     for (int i = 0; i < BOARD_SIZE; ++i) {
@@ -160,23 +160,23 @@ void setupShips(char board[BOARD_SIZE][BOARD_SIZE], unsigned int seed) {
         }
     }
 
-    // Размеры кораблей (пример для классического морского боя)
+    // Размеры кораблей
     int shipSizes[] = { 4, 3, 3, 2, 2, 2, 1, 1, 1, 1 };
     for (int size : shipSizes) {
         bool placed = false;
         int attempts = 0; // Счетчик попыток размещения
-        while (!placed && attempts < 1000) { // Ограничим количество попыток
+        while (!placed && attempts < 100) { // Ограничиваем количество попыток до 100
             bool horizontal = rand() % 2 == 0; // Случайно выбираем ориентацию корабля
             int x, y;
 
             if (horizontal) {
                 // Горизонтальный корабль: выравниваем по верхнему краю (y = 0)
                 x = rand() % (BOARD_SIZE - size + 1); // Случайная начальная точка x
-                y = 0; // Корабль начинается в верхнем ряду
+                y = rand() % BOARD_SIZE; // Корабль начинается с случайного ряда
             }
             else {
                 // Вертикальный корабль: выравниваем по левому краю (x = 0)
-                x = 0; // Корабль начинается в левом столбце
+                x = rand() % BOARD_SIZE; // Корабль начинается с случайного столбца
                 y = rand() % (BOARD_SIZE - size + 1); // Случайная начальная точка y
             }
 
@@ -192,6 +192,7 @@ void setupShips(char board[BOARD_SIZE][BOARD_SIZE], unsigned int seed) {
         }
     }
 }
+
 
 
 void playGame(SOCKET socket, bool isHost) {
@@ -233,7 +234,7 @@ void playGame(SOCKET socket, bool isHost) {
 
                 if (result == 'X') {
                     std::cout << "Попадание! Вы ходите снова." << std::endl;
-                    enemyBoard[x][y] = 'X';
+                    enemyBoard[x][y] = 'X'; // Меняем на крестик (X) при попадании
                     enemyShips--;
                     if (enemyShips == 0) {
                         std::cout << "Поздравляем! Вы победили!" << std::endl;
@@ -243,8 +244,7 @@ void playGame(SOCKET socket, bool isHost) {
                 }
                 else {
                     std::cout << "Промах!" << std::endl;
-                    enemyBoard[x][y] = 'O';
-                    turn = false;
+                    enemyBoard[x][y] = 'O'; // Меняем на промах (O)
                 }
             }
             else {
@@ -254,7 +254,7 @@ void playGame(SOCKET socket, bool isHost) {
                 std::cout << "Противник выстрелил в: " << x << " " << y << std::endl;
 
                 char result = 'O';
-                if (myBoard[x][y] == 'S') {
+                if (myBoard[x][y] == 'K') {
                     result = 'X';
                     myBoard[x][y] = 'X';
                     myShips--;
