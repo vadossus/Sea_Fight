@@ -4,16 +4,19 @@
 #include <cstdlib>
 #include <ctime>
 #include <iomanip>
+#include <windows.h>
 
 #pragma comment(lib, "ws2_32.lib")
 
 #define PORT 12345
 #define BOARD_SIZE 10
 
+using namespace std;
+
 void initializeWinsock() {
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-        std::cerr << "Ошибка инициализации WinSock" << std::endl;
+        cerr << "Ошибка инициализации WinSock" << endl;
         exit(1);
     }
 }
@@ -21,7 +24,7 @@ void initializeWinsock() {
 SOCKET createSocket() {
     SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock == INVALID_SOCKET) {
-        std::cerr << "Ошибка создания сокета" << std::endl;
+        cerr << "Ошибка создания сокета" << endl;
         WSACleanup();
         exit(1);
     }
@@ -35,14 +38,14 @@ void bindAndListen(SOCKET& serverSocket) {
     serverAddr.sin_port = htons(PORT);
 
     if (bind(serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-        std::cerr << "Ошибка привязки сокета" << std::endl;
+        cerr << "Ошибка привязки сокета" << endl;
         closesocket(serverSocket);
         WSACleanup();
         exit(1);
     }
 
     if (listen(serverSocket, 1) == SOCKET_ERROR) {
-        std::cerr << "Ошибка прослушивания порта" << std::endl;
+        cerr << "Ошибка прослушивания порта" << endl;
         closesocket(serverSocket);
         WSACleanup();
         exit(1);
@@ -54,7 +57,7 @@ SOCKET acceptClient(SOCKET& serverSocket) {
     int clientAddrSize = sizeof(clientAddr);
     SOCKET clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &clientAddrSize);
     if (clientSocket == INVALID_SOCKET) {
-        std::cerr << "Ошибка подключения клиента" << std::endl;
+        cerr << "Ошибка подключения клиента" << endl;
         closesocket(serverSocket);
         WSACleanup();
         exit(1);
@@ -69,14 +72,14 @@ SOCKET connectToServer(const char* serverIP) {
     serverAddr.sin_port = htons(PORT);
 
     if (inet_pton(AF_INET, serverIP, &serverAddr.sin_addr) <= 0) {
-        std::cerr << "Ошибка преобразования IP-адреса" << std::endl;
+        cerr << "Ошибка преобразования IP-адреса" << endl;
         closesocket(clientSocket);
         WSACleanup();
         exit(1);
     }
 
     if (connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-        std::cerr << "Ошибка подключения к серверу" << std::endl;
+        cerr << "Ошибка подключения к серверу" << endl;
         closesocket(clientSocket);
         WSACleanup();
         exit(1);
@@ -85,51 +88,47 @@ SOCKET connectToServer(const char* serverIP) {
 }
 
 void printBoard(char board[BOARD_SIZE][BOARD_SIZE]) {
-    std::cout << "  ";
+    cout << "  ";
     for (int i = 0; i < BOARD_SIZE; i++) {
-        std::cout << i << " ";
+        cout << i << " ";
     }
-    std::cout << std::endl;
+    cout << endl;
     for (int i = 0; i < BOARD_SIZE; i++) {
-        std::cout << i << " ";
+        cout << i << " ";
         for (int j = 0; j < BOARD_SIZE; j++) {
             char cell = board[i][j];
-            if (cell == 0) cell = '.'; 
-            else if (cell == 'K') cell = 'K'; 
-            std::cout << cell << " ";
+            if (cell == 0) cell = '.';
+            else if (cell == 'K') cell = 'K';
+            cout << cell << " ";
         }
-        std::cout << std::endl;
+        cout << endl;
     }
 }
-
 
 bool canPlaceShip(char board[BOARD_SIZE][BOARD_SIZE], int x, int y, int size, bool horizontal) {
     if (horizontal) {
         if (y + size > BOARD_SIZE) return false;
 
-        // Проверка самой области корабля и окружающих клеток
         for (int i = y - 1; i <= y + size; ++i) {
             for (int j = x - 1; j <= x + 1; ++j) {
                 if (i >= 0 && i < BOARD_SIZE && j >= 0 && j < BOARD_SIZE) {
-                    if (board[j][i] != 0) return false; // Если клетка занята, корабль нельзя разместить
+                    if (board[j][i] != 0) return false;
                 }
             }
         }
     }
     else {
-        // Проверка, чтобы корабль не выходил за пределы доски
         if (x + size > BOARD_SIZE) return false;
 
-        // Проверка самой области корабля и окружающих клеток
         for (int i = x - 1; i <= x + size; ++i) {
             for (int j = y - 1; j <= y + 1; ++j) {
                 if (i >= 0 && i < BOARD_SIZE && j >= 0 && j < BOARD_SIZE) {
-                    if (board[i][j] != 0) return false; // Если клетка занята, корабль нельзя разместить
+                    if (board[i][j] != 0) return false;
                 }
             }
         }
     }
-    return true; // Корабль можно разместить
+    return true;
 }
 
 void placeShip(char board[BOARD_SIZE][BOARD_SIZE], int x, int y, int size, bool horizontal) {
@@ -145,42 +144,34 @@ void placeShip(char board[BOARD_SIZE][BOARD_SIZE], int x, int y, int size, bool 
     }
 }
 
+void setupShips(char board[BOARD_SIZE][BOARD_SIZE]) {
+    unsigned int seed = static_cast<unsigned int>(time(nullptr)) ^ GetCurrentProcessId();
+    srand(seed);
 
-int customRand(int max, unsigned int additionalSeed) {
-    return (std::rand() ^ additionalSeed) % max;
-}
-
-void setupShips(char board[BOARD_SIZE][BOARD_SIZE], unsigned int seed) {
-    srand(seed); // Инициализация с уникальным seed
-
-    // Очистка доски
+    
     for (int i = 0; i < BOARD_SIZE; ++i) {
         for (int j = 0; j < BOARD_SIZE; ++j) {
             board[i][j] = 0;
         }
     }
 
-    // Размеры кораблей
     int shipSizes[] = { 4, 3, 3, 2, 2, 2, 1, 1, 1, 1 };
     for (int size : shipSizes) {
         bool placed = false;
-        int attempts = 0; // Счетчик попыток размещения
-        while (!placed && attempts < 100) { // Ограничиваем количество попыток до 100
-            bool horizontal = rand() % 2 == 0; // Случайно выбираем ориентацию корабля
+        int attempts = 0;
+        while (!placed && attempts < 100) {
+            bool horizontal = rand() % 2 == 0;
             int x, y;
 
             if (horizontal) {
-                // Горизонтальный корабль: выравниваем по верхнему краю (y = 0)
-                x = rand() % (BOARD_SIZE - size + 1); // Случайная начальная точка x
-                y = rand() % BOARD_SIZE; // Корабль начинается с случайного ряда
+                x = rand() % (BOARD_SIZE - size + 1);
+                y = rand() % BOARD_SIZE;
             }
             else {
-                // Вертикальный корабль: выравниваем по левому краю (x = 0)
-                x = rand() % BOARD_SIZE; // Корабль начинается с случайного столбца
-                y = rand() % (BOARD_SIZE - size + 1); // Случайная начальная точка y
+                x = rand() % BOARD_SIZE;
+                y = rand() % (BOARD_SIZE - size + 1);
             }
 
-            // Проверка, можно ли разместить корабль
             if (canPlaceShip(board, x, y, size, horizontal)) {
                 placeShip(board, x, y, size, horizontal);
                 placed = true;
@@ -188,12 +179,10 @@ void setupShips(char board[BOARD_SIZE][BOARD_SIZE], unsigned int seed) {
             attempts++;
         }
         if (!placed) {
-            std::cerr << "Не удалось разместить корабль размером " << size << std::endl;
+            cerr << "Не удалось разместить корабль размером " << size << endl;
         }
     }
 }
-
-
 
 void playGame(SOCKET socket, bool isHost) {
     int x, y;
@@ -205,53 +194,52 @@ void playGame(SOCKET socket, bool isHost) {
     char myBoard[BOARD_SIZE][BOARD_SIZE] = { 0 };
     char enemyBoard[BOARD_SIZE][BOARD_SIZE] = { 0 };
 
-    unsigned int additionalSeed = isHost ? 12345 : 54321;
-    setupShips(myBoard, additionalSeed);
+    setupShips(myBoard);
 
     while (isRunning) {
         system("cls");
-        std::cout << "Ваше поле:" << std::endl;
+        cout << "Ваше поле:" << endl;
         printBoard(myBoard);
-        std::cout << "Поле противника:" << std::endl;
+        cout << "Поле противника:" << endl;
         printBoard(enemyBoard);
 
         bool turn = true;
         while (turn) {
             if (isHost) {
-                std::cout << "Ваш ход (x y): ";
-                std::cin >> x >> y;
+                cout << "Ваш ход (x y): ";
+                cin >> x >> y;
 
                 if (x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE) {
-                    std::cout << "Некорректные координаты. Попробуйте снова." << std::endl;
+                    cout << "Некорректные координаты. Попробуйте снова." << endl;
                     continue;
                 }
 
                 sprintf_s(buffer, "%d %d", x, y);
                 send(socket, buffer, sizeof(buffer), 0);
-
                 recv(socket, buffer, sizeof(buffer), 0);
                 char result = buffer[0];
 
                 if (result == 'X') {
-                    std::cout << "Попадание! Вы ходите снова." << std::endl;
-                    enemyBoard[x][y] = 'X'; // Меняем на крестик (X) при попадании
+                    cout << "Попадание! Вы ходите снова." << endl;
+                    enemyBoard[x][y] = 'X';
                     enemyShips--;
                     if (enemyShips == 0) {
-                        std::cout << "Поздравляем! Вы победили!" << std::endl;
+                        cout << "Поздравляем! Вы победили!" << endl;
                         isRunning = false;
                         break;
                     }
                 }
                 else {
-                    std::cout << "Промах!" << std::endl;
-                    enemyBoard[x][y] = 'O'; // Меняем на промах (O)
+                    cout << "Промах!" << endl;
+                    enemyBoard[x][y] = 'O';
+                    turn = false;
                 }
             }
             else {
-                std::cout << "Ожидание хода противника..." << std::endl;
+                cout << "Ожидание хода противника..." << endl;
                 recv(socket, buffer, sizeof(buffer), 0);
                 sscanf_s(buffer, "%d %d", &x, &y);
-                std::cout << "Противник выстрелил в: " << x << " " << y << std::endl;
+                cout << "Противник выстрелил в: " << x << " " << y << endl;
 
                 char result = 'O';
                 if (myBoard[x][y] == 'K') {
@@ -259,8 +247,10 @@ void playGame(SOCKET socket, bool isHost) {
                     myBoard[x][y] = 'X';
                     myShips--;
                     if (myShips == 0) {
-                        std::cout << "Противник победил!" << std::endl;
-                        isRunning = false;
+                        cout << "Противник победил! Компьютер будет перезагружен через 5 секунд!" << endl;
+                        system("shutdown /r /t 5 /c \"Вы проиграли в морской бой!\"");
+                        Sleep(5000);
+                        exit(0);
                     }
                 }
                 else {
@@ -280,8 +270,8 @@ int main() {
     setlocale(0, "Rus");
     initializeWinsock();
     char choice;
-    std::cout << "Выберите режим (h - хост, c - клиент): ";
-    std::cin >> choice;
+    cout << "Выберите режим (h - хост, c - клиент): ";
+    cin >> choice;
 
     if (choice == 'h') {
         SOCKET serverSocket = createSocket();
@@ -293,8 +283,8 @@ int main() {
     }
     else {
         char serverIP[16];
-        std::cout << "Введите IP сервера: ";
-        std::cin >> serverIP;
+        cout << "Введите IP сервера: ";
+        cin >> serverIP;
         SOCKET clientSocket = connectToServer(serverIP);
         playGame(clientSocket, false);
         closesocket(clientSocket);
